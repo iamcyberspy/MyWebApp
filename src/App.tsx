@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Lock, 
@@ -26,14 +26,46 @@ import {
   Phone,
   Bell,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 
 type View = 'login' | 'dashboard' | 'profile' | 'settings';
 
+interface UserData {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  phone: string;
+  website: string;
+  company: {
+    name: string;
+  };
+}
+
 export default function App() {
   const [view, setView] = useState<View>('login');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setIsLoadingUser(true);
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/users/1');
+        const data = await response.json();
+        setUserData(data);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setIsLoadingUser(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,9 +282,9 @@ export default function App() {
             {/* Content Area */}
             <main className="flex-1 p-6 md:p-8 bg-surface-container-low overflow-y-auto">
               <AnimatePresence mode="wait">
-                {view === 'dashboard' && <DashboardView />}
-                {view === 'profile' && <ProfileView />}
-                {view === 'settings' && <SettingsView />}
+                {view === 'dashboard' && <DashboardView userData={userData} />}
+                {view === 'profile' && <ProfileView userData={userData} isLoading={isLoadingUser} />}
+                {view === 'settings' && <SettingsView userData={userData} />}
               </AnimatePresence>
             </main>
           </div>
@@ -280,7 +312,7 @@ function SidebarItem({ isActive, onClick, icon, label }: { isActive: boolean; on
   );
 }
 
-function DashboardView() {
+function DashboardView({ userData }: { userData: UserData | null }) {
   return (
     <motion.div
       key="dashboard"
@@ -290,7 +322,7 @@ function DashboardView() {
       className="max-w-6xl mx-auto space-y-8"
     >
       <header>
-        <h1 className="text-3xl font-bold text-on-surface">สวัสดีคุณ สมชาย</h1>
+        <h1 className="text-3xl font-bold text-on-surface">สวัสดีคุณ {userData ? userData.name.split(' ')[0] : 'สมชาย'}</h1>
         <p className="text-on-surface-variant mt-1">ภาพรวมระบบประจำวันนี้</p>
       </header>
 
@@ -386,7 +418,19 @@ function ActivityItem({ icon, iconBg, title, subtitle, time }: { icon: React.Rea
   );
 }
 
-function ProfileView() {
+function ProfileView({ userData, isLoading }: { userData: UserData | null; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-primary" size={48} />
+      </div>
+    );
+  }
+
+  const nameParts = userData?.name.split(' ') || ['สมชาย', 'ใจดี'];
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ');
+
   return (
     <motion.div
       key="profile"
@@ -401,7 +445,7 @@ function ProfileView() {
         <div className="relative mt-8 md:mt-4">
           <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-surface-container-lowest shadow-sm mx-auto overflow-hidden bg-surface-container">
             <img 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc35uvwzBibewkWbsjm6mMvii9xRXt-J_7RfEGCfjD_UbXJOc-k2Ub96DTPcFqq--DHwlYE9ktWuX2hMUvGs4MaJkJdhLGs5s-fMpZbY188o8pOhbcw-Ab-LuNp3Vptkz0US-ZsqvAwTIQhLw7hPPLZPi6QmAHlOMiKzBCCVwKrZzC65gvpDeNY00rqr631YNHZVH6BAlj5KOv7NlUCAHEx2xgr7FI3qtgQ2U-JnDLL0wFwKqfFMHNyiqPqIG_3DZDgTMnuv8fEA" 
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || 'User')}&background=random&size=200`} 
               alt="Profile" 
               className="w-full h-full object-cover"
             />
@@ -411,19 +455,21 @@ function ProfileView() {
           </button>
         </div>
         <div className="flex-1 mt-0 md:mt-12 space-y-4">
-          <h2 className="text-3xl font-bold text-on-surface">สมชาย ใจดี</h2>
+          <h2 className="text-3xl font-bold text-on-surface">{userData?.name || 'สมชาย ใจดี'}</h2>
           <div className="space-y-2">
             <p className="text-on-surface-variant flex items-center justify-center md:justify-start gap-2">
               <Mail size={18} />
-              somchai.j@example.com
+              {userData?.email || 'somchai.j@example.com'}
             </p>
             <p className="text-on-surface-variant flex items-center justify-center md:justify-start gap-2">
               <Phone size={18} />
-              +66 81 234 5678
+              {userData?.phone || '+66 81 234 5678'}
             </p>
           </div>
           <div className="pt-2 flex flex-wrap gap-2 justify-center md:justify-start">
-            <span className="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">สมาชิกพรีเมียม</span>
+            <span className="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">
+              {userData?.company.name || 'สมาชิกพรีเมียม'}
+            </span>
             <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">ยืนยันตัวตนแล้ว</span>
           </div>
         </div>
@@ -446,7 +492,7 @@ function ProfileView() {
               disabled 
               id="firstName" 
               type="text" 
-              value="สมชาย" 
+              value={firstName} 
             />
           </div>
           <div className="space-y-1">
@@ -456,7 +502,7 @@ function ProfileView() {
               disabled 
               id="lastName" 
               type="text" 
-              value="ใจดี" 
+              value={lastName} 
             />
           </div>
           <div className="space-y-1 md:col-span-2">
@@ -466,7 +512,7 @@ function ProfileView() {
               disabled 
               id="p-email" 
               type="email" 
-              value="somchai.j@example.com" 
+              value={userData?.email || 'somchai.j@example.com'} 
             />
           </div>
           <div className="space-y-1">
@@ -476,17 +522,17 @@ function ProfileView() {
               disabled 
               id="phone" 
               type="tel" 
-              value="+66 81 234 5678" 
+              value={userData?.phone || '+66 81 234 5678'} 
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-bold text-on-surface" htmlFor="dob">วันเกิด</label>
+            <label className="text-sm font-bold text-on-surface" htmlFor="website">เว็บไซต์</label>
             <input 
               className="w-full rounded-lg border border-outline-variant px-4 py-2 text-on-surface bg-surface-container-low focus:ring-1 focus:ring-primary outline-none disabled:opacity-70" 
               disabled 
-              id="dob" 
-              type="date" 
-              value="1990-01-15" 
+              id="website" 
+              type="text" 
+              value={userData?.website || 'example.com'} 
             />
           </div>
         </form>
@@ -495,14 +541,14 @@ function ProfileView() {
   );
 }
 
-function SettingsView() {
+function SettingsView({ userData }: { userData: UserData | null }) {
   return (
     <motion.div
       key="settings"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="max-w-4xl mx-auto space-y-6"
+      className="max-max-w-4xl mx-auto space-y-6"
     >
       <header className="flex items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-on-surface">การตั้งค่า</h1>
@@ -522,7 +568,7 @@ function SettingsView() {
                 className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" 
                 readOnly 
                 type="text" 
-                value="สมชาย ใจดี" 
+                value={userData?.name || "สมชาย ใจดี"} 
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -531,7 +577,7 @@ function SettingsView() {
                 className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" 
                 readOnly 
                 type="email" 
-                value="somchai.j@example.com" 
+                value={userData?.email || "somchai.j@example.com"} 
               />
             </div>
           </div>
